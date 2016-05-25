@@ -1,0 +1,110 @@
+clear;
+matlabload('setup.mat');
+delete_fsp=1;
+
+path=pwd;
+a=ls;
+
+# find last iteration completed by .mat file
+for(i=0; i<1000; i=i+1)
+	{
+	condition=findstring(a,"iteration"+num2str(i)+'.mat');
+
+	if (condition<1) 
+		{iteration=i;
+		i=1001;
+		}
+	}
+
+
+
+if (setup.source_coherence!=0)
+{
+load(path+'/Iteration '+num2str(iteration)+'.fsp');
+runanalysis;
+}
+
+### export pabs data to matlab
+
+filename='iteration'+num2str(iteration);
+
+pabs_string='';
+reflection_string='';
+transmission_string='';
+
+
+for (i=1:setup.source_number)
+{
+	if (setup.source_coherence==0)
+	{
+	load(path+'/temp'+num2str(i)+'.fsp');
+	runanalysis;
+	}
+
+output_name="pabs"+num2str(i);
+fdtd_name="pabs_adv_"+num2str(i);
+eval(output_name+"=getresult("+"'"+fdtd_name+"'"+",'Pabs');");
+
+pabs_string=pabs_string+","+output_name;
+
+### export Reflection and Transmission data
+output_name="Transmission"+num2str(i);
+fdtd_name="Transmission_"+num2str(i);
+eval(output_name+"=getresult("+"'"+fdtd_name+"'"+",'T');");
+
+transmission_string=transmission_string+","+output_name;
+
+output_name="Reflection"+num2str(i);
+fdtd_name="Reflection_"+num2str(i);
+eval(output_name+"=getresult("+"'"+fdtd_name+"'"+",'T');");
+
+reflection_string=reflection_string+","+output_name;
+
+}
+
+# export index data
+Index=getresult("index","index");
+if(setup.dimension==2)
+{
+
+if((substring(currentfilename,length(currentfilename)-8)=='temp1.fsp')){
+    if((setup.pol1==0)){index=Index.index_z;}
+    else {index=Index.index_y;}
+    }
+
+if(substring(currentfilename,length(currentfilename)-8)=='temp2.fsp') {
+    if((setup.pol2==0)){index=Index.index_z;}
+    else {index=Index.index_y;}
+    }
+
+if((setup.source_number==1)){
+    if((setup.pol1==0)) {
+    index=Index.index_z;}
+    else {index=Index.index_y;}
+    }
+
+}
+else {index=Index.index_y;}
+
+eval("matlabsave(filename"+pabs_string+reflection_string+transmission_string+",index);");
+
+switchtolayout; save;
+
+# delete simulation file to save space, flag at top
+if (delete_fsp==1)
+	{
+	if (iteration==0) {switchtolayout; save;}
+	if (iteration>1) {del('Iteration '+num2str(iteration-1)+'.fsp');}
+	#if (iteration==30) {del('Iteration 30.fsp');}
+	if (setup.source_coherence==0){
+		for (i=1:setup.source_number) {
+		del('temp'+num2str(i)+'.fsp');}
+				}
+	}
+else
+	{switchtolayout;
+	 save;}
+
+
+
+exit(2);

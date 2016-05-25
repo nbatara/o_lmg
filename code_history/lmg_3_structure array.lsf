@@ -1,0 +1,181 @@
+###############################################
+# scriptfile: usr_importsurface_3d.lsf
+#
+# description: This file creates shows how to import
+#     a surface object from a file. Please run
+#     usr_surface_3d_1.lsf to create the file
+#     usr_surface_3d_1.txt before running this script.
+#
+# Copyright 2007, Lumerical Solutions, Inc.
+###############################################
+clear;
+matlabload('setup.mat');	
+
+material=1;
+delete_fsp=1;
+
+# load previous iteration file
+
+path=pwd;
+cd(path);
+a=ls;
+
+# find last iteration completed by .mat file
+for(i=0; i<1000; i=i+1)
+	{
+	condition=findstring(a,"iteration"+num2str(i)+'.mat');
+
+	if (condition<1) 
+		{iteration=i;
+		i=1001;
+		}
+	}
+
+## Load (and Save) Simulation File
+if(iteration==0)
+{
+load(path+'/Iteration '+num2str(iteration)+'.fsp');
+}
+
+if(iteration>0)
+{
+load(path+'/Iteration '+num2str(iteration-1)+'.fsp');
+save(path+'/Iteration '+num2str(iteration)+'.fsp');
+}
+switchtolayout;
+
+
+
+
+## update import object
+if(iteration>0)
+
+{
+	
+	if(iteration>1)
+	{
+	select('import');
+	delete;
+	}
+
+	# import the data from file
+	filename = path+'/iteration'+num2str(iteration)+'.txt';
+	upper_surface = 1; # set to 0 to import the lower surface
+	file_units = "m";
+	x0 = 0;
+	y0 = 0;
+	z0 = 0;
+	reverse_index_order=0; # set to 1 to invert x and y axes
+
+	addimport;
+	set("override mesh order from material database",1);
+	set("mesh order",3);
+	matlabload('struct'+num2str(iteration)+'.mat');
+	if(setup.dimension==2){importbinary2(shape_matrix,x,y,[-.5e-6,.5e-6]);}
+	else {importbinary2(shape_matrix,x,y,z);}
+	
+	if (material==1){set('material','SeTe (New nk, Thin Film, Flat) ');}
+	if (material==2){set('material','CdTe - Sopra');}
+	if (material==3){set('material','Se (Amorphous)');}
+	if (material==4){set('material','PbSe - Adachi');}
+	if (material==5){set('material','Se:PbSe');}
+
+
+	# create array of import objects to reduce boundary error
+	x_span = get("x span");
+	z_span = get("z span");
+	copy(x_span,0,0);
+	copy(0,-x_span,z_span);
+	
+
+}
+
+
+save(path+'/Iteration '+num2str(iteration)+'.fsp');
+
+if (setup.source_coherence!=0)
+{
+run(3);
+runanalysis;
+}
+
+### export pabs data to matlab
+
+filename='iteration'+num2str(iteration);
+
+pabs_string='';
+reflection_string='';
+transmission_string='';
+
+
+for (i=1:setup.source_number)
+{
+	if (setup.source_coherence==0)
+	{
+	load(path+'/Iteration '+num2str(iteration)+'.fsp');
+	save(path+'/temp.fsp');
+		#delete other sources
+		for (j=1:setup.source_number)
+		{ 
+			
+			if (i!=j)
+				{
+				select("source_"+num2str(j)); 
+				delete;
+				}
+			
+		}
+	run(3);
+	runanalysis;
+	}
+
+output_name="pabs"+num2str(i);
+fdtd_name="pabs_adv_"+num2str(i);
+eval(output_name+"=getresult("+"'"+fdtd_name+"'"+",'Pabs');");
+
+pabs_string=pabs_string+","+output_name;
+
+### export Reflection and Transmission data
+output_name="Transmission"+num2str(i);
+fdtd_name="Transmission_"+num2str(i);
+eval(output_name+"=getresult("+"'"+fdtd_name+"'"+",'T');");
+
+transmission_string=transmission_string+","+output_name;
+
+output_name="Reflection"+num2str(i);
+fdtd_name="Reflection_"+num2str(i);
+eval(output_name+"=getresult("+"'"+fdtd_name+"'"+",'T');");
+
+reflection_string=reflection_string+","+output_name;
+
+}
+
+###########
+Index=getresult("index","index");
+if(setup.dimension==2)
+{
+if(setup.pol1==0){index=Index.index_z;}
+else {index=Index.index_y;}
+}
+else {index=Index.index_y;}
+
+
+
+
+eval("matlabsave(filename"+pabs_string+reflection_string+transmission_string+",index);");
+
+# delete simulation file to save space, flag at top
+if (delete_fsp==1)
+	{
+	if (iteration==0) {switchtolayout; save;}
+	if (iteration>1) {del('Iteration '+num2str(iteration-1)+'.fsp');}
+	if (iteration==30) {del('Iteration 30.fsp');}
+	if (setup.source_coherence==0){del('temp.fsp');}
+	}
+else
+	{switchtolayout;
+	 save;}
+
+
+
+exit(2);

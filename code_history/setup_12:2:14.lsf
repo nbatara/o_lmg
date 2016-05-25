@@ -1,0 +1,103 @@
+## This script will take parameters from setup.m
+## to setup a lmg iteration
+##
+
+deleteall;
+load('lmg.fsp');
+
+
+# Simulation Parameters
+matlabload('setup.mat');
+
+mesh_size=setup.mesh_size*1e-9;
+simulation_length=setup.sim_length*1e-9;
+simulation_height=setup.sim_height*1e-9;
+
+source_bandwidth=00e-9;
+source_pol_angle=0; #0 (polarized along x) 90 (polarized along z)
+
+frequency_points=1;
+
+#Simulation Area
+
+addfdtd;
+set('background index',1.33);
+set("x span",simulation_length);
+set("z span",simulation_length);
+
+set("y",simulation_height/2);
+set("y span",simulation_height);
+
+set("mesh type","uniform");
+set("dx",mesh_size);
+set("dy",mesh_size);
+set("dz",mesh_size);
+
+set("x min bc","periodic");
+set("z min bc","periodic");
+
+for (i=1:setup.source_number)
+#Sources
+{
+addplane;
+name="source_"+num2str(i);
+set("name",name);
+set("injection axis","y-axis");
+set("direction","Backward");
+eval("set('center wavelength',setup.wavelength"+num2str(i)+"*1e-9);");
+set('wavelength span',source_bandwidth);
+set('polarization angle',source_pol_angle);
+
+set("x span",simulation_length+2*mesh_size);
+set("z span",simulation_length+2*mesh_size);
+
+set("y",simulation_height-mesh_size);
+
+#pabs_adv Group
+
+select("pabs_adv");
+copy;
+name="pabs_adv_"+num2str(i);
+set("name",name);
+set("x span",simulation_length);
+set("z span",simulation_length);
+
+set("y span",simulation_height-2*mesh_size);
+set("y",(simulation_height-2*mesh_size)/2);
+
+groupscope(name);
+selectall;
+set("override global monitor settings",1);
+set("frequency points",frequency_points);
+set("use source limits",0);
+eval("set('wavelength center',setup.wavelength"+num2str(i)+"*1e-9);");
+eval("set('wavelength span',source_bandwidth);");
+
+groupscope("::model");
+
+}
+
+select("pabs_adv");
+delete;
+
+#Substrate
+
+addrect;
+set("material","Si (Silicon) - Palik");
+set("x span",3*simulation_length);
+set("z span",3*simulation_length);
+
+set("y min",-1e-6);
+set("y max",0+mesh_size);
+
+#Interpolated Index Monitor
+addindex;
+set('name','index');
+set('monitor type','3D');
+set("x span",simulation_length);
+set("z span",simulation_length);
+
+set("y span",simulation_height-2*mesh_size);
+set("y",(simulation_height-2*mesh_size)/2);
+
+save('Iteration 0.fsp');

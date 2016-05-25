@@ -1,0 +1,168 @@
+## This script will take parameters from setup.m
+## to setup a lmg iteration
+##
+
+load('lmg.fsp');
+
+
+# Simulation Parameters
+matlabload('setup.mat');
+
+mesh_size=setup.mesh_size*1e-9;
+simulation_length=setup.sim_length*1e-9;
+simulation_height=setup.sim_height*1e-9;
+simulation_depth=setup.aspect_ratio*simulation_length;
+
+source_bandwidth=00e-9;
+
+frequency_points=1;
+
+incoherent_source_number=100-1;
+
+#Simulation Area
+
+addfdtd;
+set('mesh refinement','staircase');
+set('background index',1.33);
+set("x span",simulation_length);
+set("z span",simulation_depth);
+
+set("y",simulation_height/2);
+set("y span",simulation_height);
+
+set("mesh type","uniform");
+set("dx",mesh_size);
+set("dy",mesh_size);
+set("dz",mesh_size);
+
+set("x min bc","periodic");
+set("z min bc","periodic");
+
+if(setup.dimension==2){ set("dimension","2D"); source_pol_angle=source_pol_angle+90;}
+
+for (i=1:setup.source_number)
+#Sources
+{
+addplane;
+name="source_"+num2str(i);
+set("name",name);
+set("injection axis","y-axis");
+set("direction","Backward");
+eval("set('center wavelength',setup.wavelength"+num2str(i)+"*1e-9);");
+set('wavelength span',source_bandwidth);
+eval("set('polarization angle',setup.pol"+num2str(i)+");");
+'blah';
+if (setup.source_number==2)
+{
+if (setup.wavelength1==setup.wavelength2)
+	{eval("set('amplitude',sqrt(setup.intensity"+num2str(i)+"));");}
+}
+
+set("x span",simulation_length+2*mesh_size);
+set("z span",simulation_depth+2*mesh_size);
+
+set("y",simulation_height-mesh_size);
+
+#pabs_adv Group
+
+select("pabs_adv");
+copy;
+name="pabs_adv_"+num2str(i);
+set("name",name);
+set("x span",simulation_length);
+set("z span",simulation_depth);
+
+set("y span",simulation_height-2*mesh_size);
+set("y",(simulation_height-2*mesh_size)/2);
+
+groupscope(name);
+selectall;
+set("override global monitor settings",1);
+set("frequency points",frequency_points);
+set("use source limits",0);
+eval("set('wavelength center',setup.wavelength"+num2str(i)+"*1e-9);");
+eval("set('wavelength span',source_bandwidth);");
+
+groupscope("::model");
+
+# Transmission and Reflection Monitors
+name="Transmission_"+num2str(i);
+addpower;
+set('name',name);
+set('monitor type','2D Y-normal');
+set("x span",simulation_length);
+set("z span",simulation_depth);
+set("y",0+mesh_size);
+
+set("override global monitor settings",1);
+set("frequency points",frequency_points);
+set("use source limits",0);
+eval("set('wavelength center',setup.wavelength"+num2str(i)+"*1e-9);");
+eval("set('wavelength span',source_bandwidth);");
+
+name="Reflection_"+num2str(i);
+addpower;
+set('name',name);
+set('monitor type','2D Y-normal');
+set("x span",simulation_length);
+set("z span",simulation_depth);
+set("y",simulation_height);
+
+set("override global monitor settings",1);
+set("frequency points",frequency_points);
+set("use source limits",0+mesh_size);
+eval("set('wavelength center',setup.wavelength"+num2str(i)+"*1e-9);");
+eval("set('wavelength span',source_bandwidth);");
+
+}
+
+select("pabs_adv");
+delete;
+
+#Source Coherence
+if (setup.source_coherence==3)
+{	phase_mat_1=randmatrix(incoherent_source_number,1)*360;
+	for (i=1:incoherent_source_number)
+		{
+		select('source_1');
+		copy;
+		set('phase',phase_mat_1(i));
+		set('optimize for short pulse',0);
+		}
+	if (setup.source_number==2)
+	{
+		phase_mat_2=randmatrix(incoherent_source_number,1)*360;
+		for (i=1:incoherent_source_number)
+		{
+		select('source_2');
+		copy;
+		set('phase',phase_mat_2(i));
+		set('optimize for short pulse',0);
+		}
+	}
+}
+		
+
+#Substrate
+
+addrect;
+set("material","Si (Silicon) - Palik");
+set("x span",3*simulation_length);
+set("z span",3*simulation_depth);
+
+set("y min",-1e-6);
+set("y max",0+mesh_size);
+
+#Interpolated Index Monitor
+addindex;
+set('name','index');
+set('monitor type','3D');
+set("x span",simulation_length);
+set("z span",simulation_depth);
+
+set("y span",simulation_height-2*mesh_size);
+set("y",(simulation_height-2*mesh_size)/2);
+
+save('Iteration 0.fsp');
+
+
