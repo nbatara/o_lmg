@@ -27,9 +27,9 @@ lmgAnalysis.m : Analyzes simulation results
 
 run_lmg.m : Runs simulations in each directory by calling lmg.m
 
-lmg.m : Main script which keeps track of simulation status, calls lmg_update.lsf and lmg_extract.lsf to 
-
 lmg_update.lsf : Creates next .fsp iteration using the previous iteration and a structure file 
 
 lmg_extract.lsf : Extracts absorption data from .fsp simulation and returns simulation to layout mode in order to save disk space.
+
+lmg.m : Main script which keeps track of simulation status, calls lmg_update.lsf and lmg_extract.lsf to update FDTD simulation and extract results respectively.
 
