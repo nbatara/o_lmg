@@ -3,19 +3,23 @@
 % Nicolas A. Batara 12/11/14
 % Mass Addition Done in Mesh Cell Representaion
 
-load setup.mat
-if exist('working.mat'),disp('This simulation might already be already running. Ending Early.'),...
-        return, else working=1; save('working','working'); end
+load setup.mat % load setup file which contains simulation parameters
+
+if exist('working.mat'), % create .mat file to indicate that this simulation currently running
+    disp('This simulation might already be already running. Ending Early.'),...
+        return, else working=1; save('working','working');
+end
 %% User Inputs
 total_iterations=30;
-material=1; % 1:SeTe,2:CdTe 3:a-Se 4:PbSe 5: a-Se:PbSe, 8:1
-monolayers_per_iteration=1.5*(10/setup.mesh_size);
+material=1; % 1:SeTe,2:CdTe 3:a-Se 4:PbSe 5: a-Se:PbSe (8:1)
+monolayers_per_iteration=15*(1/setup.mesh_size); % Planar mass equivalent thickness for each iteration
 monolayers_removed_per_iteration=setup.etch_fraction*monolayers_per_iteration;
 light_intensity=setup.light_intensity*1E-3; %mW/cm^2*.001W/mw=W/cm^2
-smoothing_exponent=2;
+smoothing_exponent=2; % determines how much energy penalty is applied for adding mass that will produce more interfacial area
 depletion_width=setup.depletion_width;
-inactive_substrate=1;
-dist_fcn_exp=setup.dist_fcn_exp;
+inactive_substrate=1; % set absorption in substrate to be constant. Ex: absorption in a metal should not affect local deposition rate
+dist_fcn_exp=setup.dist_fcn_exp; % affects shape of distribution function. 1: linear 2: quadratic ... etc.
+
 %% Material and Physical Constants
 
 if material==1 % SeTe
@@ -68,9 +72,9 @@ end
 
 % Physical Constants
 hc=6.626E-34*3E8; % j*m
-NA=6.022E23;
+NA=6.022E23; % Avogadro's constant
 
-%% Number of Iterations Loop
+%% Loop simulation for desired number of iterations
 input_iteration_number=-1;
 while input_iteration_number <= total_iterations
     
@@ -81,12 +85,12 @@ while input_iteration_number <= total_iterations
     nCores=dlmread('nCores.txt');
     cd(script_directory)
     
-    if ismac==0 && isunix==1
+    if ismac==0 && isunix==1 % Mac system commands assuming default FDTD install location
         run_FDTD_script=strcat(['/opt/lumerical/fdtd/bin/fdtd-solutions -nw -run ',strrep(script_directory,' ','\ '),'/lmg_update.lsf']);
         run_FDTD_simulation=strcat(['sh /opt/lumerical/fdtd/bin/fdtd-run-local.sh -n ',num2str(nCores),' ',strrep(script_directory,' ','\ '),'/']);
         extract_FDTD_script=strcat(['/opt/lumerical/fdtd/bin/fdtd-solutions -nw -run ',strrep(script_directory,' ','\ '),'/lmg_extract.lsf']);
         
-    else if ismac==1;
+    else if ismac==1; % Linux system commands assuming default FDTD install location
             run_FDTD_script=strcat(['/applications/Lumerical/FDTD\ Solutions/FDTD\ Solutions.app/Contents/MacOS/fdtd-solutions -nw -run ',strrep(script_directory,' ', '\ '),'/lmg_update.lsf']);
             run_FDTD_simulation=strcat(['sh /Applications/Lumerical/FDTD\ Solutions/Examples/fdtd-run-local.sh -n ',num2str(nCores),' ',strrep(script_directory,' ','\ '),'/']);
             extract_FDTD_script=strcat(['/applications/Lumerical/FDTD\ Solutions/FDTD\ Solutions.app/Contents/MacOS/fdtd-solutions -nw -run ',strrep(script_directory,' ', '\ '),'/lmg_extract.lsf']);
@@ -99,7 +103,7 @@ while input_iteration_number <= total_iterations
     end
     input_iteration_number=i-2;
     
-    % if no .mat file, must run .fsp script to generate
+    % if no .mat file, must run .fsp script and generate
     if input_iteration_number==-1
         system(run_FDTD_script);
         if setup.source_coherence==0
@@ -119,31 +123,37 @@ while input_iteration_number <= total_iterations
     % End Program if Last Iteration
     if input_iteration_number==total_iterations,close all,break;end
     
-    %% Manipulate Input Iteration Data
+    %% Reformat Power Absorption data
     clear pabs
     x=pabs1.x;
     y=pabs1.y;
     z=pabs1.z;
     
+    % Loop through power absorption data and combine into a single matrix.
+    % Data must also be reshaped since Lumerical FDTD exports it in a
+    % single column.
     for i=1:setup.source_number
         pabs(i,1:size(x,1),1:size(y,1),1:size(z,1),1,1:size(pabs1.lambda,1),:,:)...
             =reshape(eval(['pabs' num2str(i) '.Pabs']),size(x,1),size(y,1),size(z,1),1,size(pabs1.lambda,1));
     end
     
-    %Check to make sure power absorbed is positive
-    if min(pabs(:))/max(pabs(:))<-.001,display('The power absorbed was negative in one or more locations. Somethings wrong with the simulation!');
+    % Check to make sure power absorbed is positive otherwise display error
+    % and stop simulation.
+    if min(pabs(:))/max(pabs(:))<-.001,display('The power absorbed was negative in one or more locations. Somethings wrong with the FDTD simulation!');
         break;
     end
     
     
-    %% Mass Addition Inputs
+    %% Create Various Mass Addition Loop Inputs
+    
+    % Calculate total illumination power
     if setup.dimension==3
         power_in=light_intensity*(max(x)-min(x))*(max(z)-min(z))*1E4; %w/cm^2*m^2(100cm/m)^2=w
     else
         power_in=light_intensity*(max(x)-min(x))*1E2; %w/cm^2*m(100cm/m)=w/cm
     end
-    %Calculate generation rate
     
+    % Calculate generation rate
     generation_rate=zeros(0);
     for i=1:setup.source_number
         for j=1:size(pabs1.lambda)
@@ -155,7 +165,7 @@ while input_iteration_number <= total_iterations
         end
     end
     
-    %Weight generation rate by source profile
+    % Weight generation rate by source profile
     if size(pabs1.lambda,1)>1
         source1_profile_normalized=source1_profile/sum(source1_profile(:,2));
         for j=1:size(pabs1.lambda)
@@ -201,13 +211,17 @@ while input_iteration_number <= total_iterations
         cells_per_iteration=(size(x,1)-1)*(size(z,1))*monolayers_per_iteration;
     end
     
-    % Shape Matrix
+    % shape_matrix stores boundary values of structure
     if input_iteration_number==0
-        shape_matrix=int8(imag(index)>0);%squeeze(pabs(1,:,:,:))~=0;
+        shape_matrix=int8(imag(index)>0);
     else
         load(strcat('struct',num2str(input_iteration_number),'.mat'),'shape_matrix');
         shape_matrix=int8(padarray(shape_matrix,[0,size(y,1)-size(shape_matrix,2),0],'post'));
     end
+    
+    % cell_matrix keeps track of fully filled cells I.E. all boundary
+    % values are filled. Equivalently, it converts the mesh to a finite
+    % element representation so that we don't end up with partially filled cells
     cell_matrix=int8(shape_matrix+circshift(shape_matrix,[-1 0 0])+circshift(shape_matrix,[0 -1 0])+circshift(shape_matrix,[0 0 -1])+circshift(shape_matrix,[0 -1 -1])+circshift(shape_matrix,[-1 0 -1])+circshift(shape_matrix,[-1 -1 0])+circshift(shape_matrix,[-1 -1 -1])==8);
     
     if setup.dimension==3
@@ -215,15 +229,18 @@ while input_iteration_number <= total_iterations
     else
         cell_matrix=cell_matrix(1:size(cell_matrix,1)-1,1:size(cell_matrix,2)-1,1);
     end
+    
     % save substrate cell matrix for etch loop
     if input_iteration_number==0,substrate_cell_matrix=cell_matrix; save('substrate_cell_matrix','substrate_cell_matrix');clear substrate_cell_matrix;end
     
-    % Save Figure of Mass Distribution
-    % figure
-    % surf(x*1E9,z*1E9,y(squeeze(sum(shape_matrix,2)))'*1E9,'linestyle', 'none'),colorbar
-    % savefig(strcat('iteration',num2str(input_iteration_number)));
+    % Save Figure of Mass Distribution if desired
+    if 0
+    figure
+    surf(x*1E9,z*1E9,y(squeeze(sum(shape_matrix,2)))'*1E9,'linestyle', 'none'),colorbar
+    savefig(strcat('iteration',num2str(input_iteration_number)));
+    end
     
-    %%  Identify Coordinates within depletion width
+    %%  Identify Coordinates within depletion width if feature is on
     if depletion_width>0;
         flag_depletion_width=0;
         linear_dist=1;
@@ -267,7 +284,8 @@ while input_iteration_number <= total_iterations
     
     while total_cells_added < cells_per_iteration
         
-        % Create Neighbor Matrix
+        % neighbor_matrix_x counts the x nearest neighbors of all
+        % cells
         
         neighbor_matrix_1=uint8(circshift(cell_matrix,[-1 0 0])+circshift(cell_matrix,[1 0 0])+circshift(cell_matrix,[0 -1 0])+circshift(cell_matrix,[0 1 0])+circshift(cell_matrix,[0 0 -1])+circshift(cell_matrix,[0 0 1]));
         neighbor_matrix_2=uint8(circshift(cell_matrix,[-1 -1 0])+circshift(cell_matrix,[-1 1 0])+circshift(cell_matrix,[1 -1 0])+circshift(cell_matrix,[1 1 0])...
@@ -358,7 +376,7 @@ while input_iteration_number <= total_iterations
         % view([0,90]);
     end
     
-    %% Mass Removal Loop
+    %% Mass Removal (Etch) Loop
     if setup.dimension==3
         cells_removed_per_iteration=(size(x,1)-1)*(size(z,1)-1)*monolayers_removed_per_iteration;
     else
