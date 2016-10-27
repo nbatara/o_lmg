@@ -1,3 +1,4 @@
+% This script will run simulations within the main simulation directory
 contents=dir;
 
 for i=1:size(contents,1)
