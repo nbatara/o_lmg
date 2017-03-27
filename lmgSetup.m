@@ -28,9 +28,9 @@ else
             '2000' ...             %8
             '1' ...                %9
             '1' ...                %10
-            '0' ...                %11
+            '1' ...                %11
             '25' ...               %12
-            '0' ...                %13
+            '630' ...              %13
             '0' ...                %14
             '1' ...                %15
             '0' ...                %16
@@ -268,6 +268,7 @@ save('setup_parameters','parameters','sim_name','sim_number')
 
 %transpose arrays within parameters structure and write to .txt file
 field_name=fieldnames(parameters);
+clear temp
 for j=1:size(field_name,1)
     eval(['temp.' field_name{j} '=' 'parameters.' field_name{j} ''';']);
 end
@@ -286,6 +287,9 @@ end
 copyfile([starting_dir '/run_lmg.m'],pwd)
 copyfile([starting_dir '/lmgAnalysis.m'],pwd)
 copyfile([starting_dir '/nCores.txt'],pwd)
+mkdir('scripts'),cd('scripts')
+copyfile([starting_dir '/scripts'],pwd)
+cd ..
 %Copy files to subdirectories
 for i=1:sim_number
     mkdir([num2str(i) '_' sim_name])

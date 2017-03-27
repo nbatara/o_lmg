@@ -5,7 +5,7 @@
 
 load setup.mat % load setup file which contains simulation parameters
 
-if exist('working.mat'), % create .mat file to indicate that this simulation currently running
+if exist('working.mat','file')==2, % create .mat file to indicate that this simulation currently running
     disp('This simulation might already be already running. Ending Early.'),...
         return, else working=1; save('working','working');
 end
@@ -169,8 +169,8 @@ while input_iteration_number <= total_iterations
     if size(pabs1.lambda,1)>1
         source1_profile_normalized=source1_profile/sum(source1_profile(:,2));
         for j=1:size(pabs1.lambda)
-            if pabs1.lambda(j)*1E9-source1_profile(j,1)>.01,['Warning, absorption wavelength does not match source1 profile.'...
-                    'Check source profile data.'],end
+            if pabs1.lambda(j)*1E9-source1_profile(j,1)>.01,display(['Warning, absorption wavelength does not match source1 profile. '...
+                    'Check source profile data.']),end
             generation_rate(1,:,:,:,:,j)=generation_rate(1,:,:,:,:,j)*source1_profile_normalized(j,2);
         end
     end
@@ -179,8 +179,8 @@ while input_iteration_number <= total_iterations
         if size(pabs2.lambda,1)>1
             source2_profile_normalized=source2_profile/sum(source2_profile(:,2));
             for j=1:size(pabs2.lambda)
-                if pabs2.lambda(j)*1E9-source2_profile(j,1)>.01,['Warning, absorption wavelength does not match source2 profile.'...
-                        'Check source profile data.'],end
+                if pabs2.lambda(j)*1E9-source2_profile(j,1)>.01,display(['Warning, absorption wavelength does not match source2 profile. '...
+                        'Check source profile data.']),end
                 generation_rate(2,:,:,:,:,j)=generation_rate(2,:,:,:,:,j)*source2_profile_normalized(j,2);
             end
         end
@@ -423,7 +423,7 @@ while input_iteration_number <= total_iterations
         cell_removal_loops=cell_removal_loops+1;
         
     end
-    sum(sum(sum(cell_matrix)))
+    
     %% Write output iteration Data to .mat File
     cell_matrix=cell_matrix+substrate_cell_matrix;
     temp=padarray(cell_matrix,[1,1,1],'post');

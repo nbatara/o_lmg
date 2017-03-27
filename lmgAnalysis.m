@@ -3,6 +3,7 @@ clear all
 load setup_parameters.mat
 mkdir('images')
 mkdir('figures')
+addpath('scripts')
 for folder_index=1:sim_number
     cd([num2str(folder_index) '_' sim_name])
     
@@ -124,7 +125,7 @@ save(['lmgresults' '_filter=' num2str(filter) '.mat'],'results');
 
 
 %% Email Notification
-myEmail='brassplayer89@gmail.com';
+myEmail='';
 if ismac==1
   system('scutil --get ComputerName > hostname.txt')
     hostname= textread('hostname.txt','%s','whitespace','');
