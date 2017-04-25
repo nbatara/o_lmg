@@ -50,7 +50,7 @@ if(iteration>0)
 	if (material==2){set('material','CdTe - Sopra');}
 	if (material==3){set('material','Se (Amorphous)');}
 	if (material==4){set('material','PbSe - Adachi');}
-	if (material==5){set('material','Se:PbSe');}
+	if (material==5){set('material','Se_PbSe_20170425');}
 
 
 	# create 3x3 array of import objects to reduce boundary error
