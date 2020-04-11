@@ -3,7 +3,7 @@ Original Light Mediated Growth Simulation (No Device Physics). Development since
 Author Name: Nicolas A. Batara  
 Author Email: nick.batara@gmail.com
 
-This set of scripts is designed to simulate photoelectrodeposition of thin semiconductor films. Simulaitons evolve through iterative process of calculating light absorption in FDTD and then updating structure based on monte carlo distribution function.
+This set of scripts is designed to simulate photoelectrodeposition of thin semiconductor films. Simulations evolve through iterative process of calculating light absorption in FDTD and then updating structure based on monte carlo distribution function.
 
 Supported Operating Systems:
 Mac OSX
